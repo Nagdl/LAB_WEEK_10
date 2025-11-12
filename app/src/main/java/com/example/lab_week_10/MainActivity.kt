@@ -8,16 +8,32 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.ViewModelProvider
+import com.example.lab_week_10.database.Total
 import com.example.lab_week_10.viewmodels.TotalViewModel
+import androidx.room.Room
+import com.example.lab_week_10.database.TotalDatabase
+
 class MainActivity : AppCompatActivity() {
+
+    // Create an instance of the TotalDatabase
+// by lazy is used to create the database only when it's needed
+    private val db by lazy { prepareDatabase() }
     private val viewModel by lazy {
         ViewModelProvider(this)[TotalViewModel::class.java]
     }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        // Initialize the value of the total from the database
+        initializeValueFromDatabase()
         prepareViewModel()
     }
+
+    override fun onPause() {
+        super.onPause()
+        db.totalDao().update(Total(ID, viewModel.total.value!!))
+    }
+
     private fun updateText(total: Int) {
         findViewById<TextView>(R.id.text_total).text =
             getString(R.string.text_total, total)
@@ -32,5 +48,23 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.button_increment).setOnClickListener {
             viewModel.incrementTotal()
         }
+    }
+    private fun prepareDatabase(): TotalDatabase {
+        return Room.databaseBuilder(
+            applicationContext,
+            TotalDatabase::class.java, "total-database"
+        ).allowMainThreadQueries().build()
+    }
+    private fun initializeValueFromDatabase() {
+        val total = db.totalDao().getTotal(ID)
+        if (total.isEmpty()) {
+            db.totalDao().insert(Total(id = 1, total = 0))
+        } else {
+            viewModel.setTotal(total.first().total)
+        }
+    }
+
+    companion object {
+        const val ID: Long = 1
     }
 }
